@@ -164,8 +164,8 @@ object StreamExtractor {
                     }
                 } catch(e) {}
 
-                // 4. Hook Hls.js loadSource
-                function hookHlsJs() {
+                // 4. Hook Hls.js & Clappr loadSource
+                function hookPlayers() {
                     try {
                         if (window.Hls && window.Hls.prototype && !window.Hls.prototype.__hooked) {
                             window.Hls.prototype.__hooked = true;
@@ -176,9 +176,21 @@ object StreamExtractor {
                             };
                         }
                     } catch(e) {}
+
+                    try {
+                        if (window.Clappr && window.Clappr.Player && window.Clappr.Player.prototype && !window.Clappr.Player.prototype.__hooked) {
+                            window.Clappr.Player.prototype.__hooked = true;
+                            const origLoad = window.Clappr.Player.prototype.load;
+                            window.Clappr.Player.prototype.load = function(target) {
+                                const url = typeof target === 'string' ? target : (target && target.source ? target.source : '');
+                                if (url) reportStream(url, 'CLAPPR_LOAD');
+                                return origLoad.apply(this, arguments);
+                            };
+                        }
+                    } catch(e) {}
                 }
-                hookHlsJs();
-                setInterval(hookHlsJs, 1500);
+                hookPlayers();
+                setInterval(hookPlayers, 1000);
 
                 // 5. Scan DOM for <video>, <source>, <audio>, <iframe> elements
                 function scanMediaElements() {
@@ -187,13 +199,30 @@ object StreamExtractor {
                         if (src) reportStream(src, 'TAG_' + el.tagName);
                     });
 
-                    // Scan inline script tags for .m3u8 regex matches
+                    // Scan inline script tags for .m3u8 regex matches & obfuscated array joins
                     const m3u8Regex = /https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*/gi;
+                    const arrayJoinRegex = /\[\s*(?:["'][a-zA-Z0-9_\-\.\:\/\?=&%]+["']\s*,\s*)+["'][a-zA-Z0-9_\-\.\:\/\?=&%]+["']\s*\]\.join\(\s*["']{2}\s*\)/g;
+
                     document.querySelectorAll('script').forEach(s => {
                         const code = s.textContent || s.innerText || '';
+
+                        // Check direct matches
                         const matches = code.match(m3u8Regex);
                         if (matches) {
                             matches.forEach(m => reportStream(m, 'INLINE_SCRIPT'));
+                        }
+
+                        // Check obfuscated array join matches
+                        const arrayMatches = code.match(arrayJoinRegex);
+                        if (arrayMatches) {
+                            arrayMatches.forEach(arrStr => {
+                                try {
+                                    const evaluated = (new Function('return ' + arrStr))();
+                                    if (evaluated && typeof evaluated === 'string') {
+                                        reportStream(evaluated, 'DEOBFUSCATED_ARRAY');
+                                    }
+                                } catch(e) {}
+                            });
                         }
                     });
 
@@ -203,9 +232,21 @@ object StreamExtractor {
                             reportStream(window[key], 'VAR_' + key);
                         }
                     }
+
+                    // Check global function return values (e.g. ltiyTem())
+                    for (let fnName in window) {
+                        if (typeof window[fnName] === 'function' && fnName.length > 4 && fnName.length < 12) {
+                            try {
+                                const res = window[fnName]();
+                                if (typeof res === 'string' && res.includes('.m3u8')) {
+                                    reportStream(res, 'GLOBAL_FN_' + fnName);
+                                }
+                            } catch(e) {}
+                        }
+                    }
                 }
                 scanMediaElements();
-                setInterval(scanMediaElements, 2000);
+                setInterval(scanMediaElements, 1500);
 
                 // 6. Auto-kickstart video players
                 function autoKickstart() {
