@@ -55,7 +55,7 @@ object StreamExtractor {
         }
     }
 
-    inner class StreamInterceptor : Interceptor {
+    class StreamInterceptor : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val request = chain.request()
             val url = request.url.toString()
