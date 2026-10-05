@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_dialog"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="📤 Update Supabase Channel"
+            android:textColor="@color/text_primary"
+            android:textSize="15.5sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnCloseSendDialog"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"
+            android:src="@drawable/ic_close"
+            app:tint="@color/text_secondary" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="10dp"
+        android:background="@color/border_subtle" />
+
+    <!-- Target Channel ID (e.g. sony1, willow, star1, ddsports) -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Target Channel ID (Supabase id column)"
+        android:textColor="@color/text_primary"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/etTargetChannelId"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_search_box"
+        android:hint="e.g. sony1, willow, star1, ddsports"
+        android:inputType="text"
+        android:maxLines="1"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_hint"
+        android:textSize="12.5sp" />
+
+    <!-- Stream URL Preview -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Stream URL to Push"
+        android:textColor="@color/text_primary"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvStreamUrlPreview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_card_item"
+        android:fontFamily="monospace"
+        android:maxLines="3"
+        android:padding="8dp"
+        android:textColor="@color/text_primary"
+        android:textSize="11sp" />
+
+    <!-- Referer Preview -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Referer Header"
+        android:textColor="@color/text_primary"
+        android:textSize="11.5sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/etRefererHeader"
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_search_box"
+        android:hint="https://playsza.xyz/"
+        android:inputType="textUri"
+        android:maxLines="1"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textColor="@color/text_secondary"
+        android:textColorHint="@color/text_hint"
+        android:textSize="11.5sp" />
+
+    <!-- Result / Status message -->
+    <TextView
+        android:id="@+id/tvSendStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Ready to update"
+        android:textColor="@color/text_hint"
+        android:textSize="11sp" />
+
+    <!-- Send Button -->
+    <Button
+        android:id="@+id/btnConfirmSendSupabase"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_button_primary"
+        android:text="🚀 Push Update to Supabase"
+        android:textColor="#000000"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+</LinearLayout>

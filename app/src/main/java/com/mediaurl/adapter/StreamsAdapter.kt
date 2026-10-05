@@ -11,6 +11,7 @@ import com.mediaurl.model.DetectedStream
 
 class StreamsAdapter(
     private var streamList: List<DetectedStream> = emptyList(),
+    private val onSendToSupabase: ((DetectedStream) -> Unit)? = null,
     private val onItemClick: ((DetectedStream) -> Unit)? = null
 ) : RecyclerView.Adapter<StreamsAdapter.StreamViewHolder>() {
 
@@ -38,6 +39,7 @@ class StreamsAdapter(
         private val tvStreamUrl: TextView = itemView.findViewById(R.id.tvStreamUrl)
         private val btnCopyUrl: TextView = itemView.findViewById(R.id.btnCopyUrl)
         private val btnCopyCurl: TextView = itemView.findViewById(R.id.btnCopyCurl)
+        private val btnSendToSupabase: TextView = itemView.findViewById(R.id.btnSendToSupabase)
 
         fun bind(stream: DetectedStream) {
             tvFormatBadge.text = stream.format
@@ -51,6 +53,10 @@ class StreamsAdapter(
 
             btnCopyCurl.setOnClickListener {
                 StreamExtractor.copyToClipboard(itemView.context, stream.curlCommand, "cURL Command")
+            }
+
+            btnSendToSupabase.setOnClickListener {
+                onSendToSupabase?.invoke(stream)
             }
 
             itemView.setOnClickListener {

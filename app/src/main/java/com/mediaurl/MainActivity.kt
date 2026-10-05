@@ -3,7 +3,7 @@ package com.mediaurl
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ActivityInfo
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -42,9 +42,13 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.mediaurl.adapter.StreamsAdapter
 import com.mediaurl.manager.ScriptManager
 import com.mediaurl.manager.StreamExtractor
+import com.mediaurl.manager.SupabaseSyncManager
+import com.mediaurl.model.DetectedStream
+import com.mediaurl.service.ExtractorService
 
 class MainActivity : AppCompatActivity() {
 
@@ -66,6 +70,7 @@ class MainActivity : AppCompatActivity() {
     private var customVideoView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
     private var isDesktopMode = false
+    private var isBackgroundModeEnabled = false
 
     @Volatile
     private var cachedPageUrl: String = "https://www.google.com"
@@ -78,10 +83,16 @@ class MainActivity : AppCompatActivity() {
     private val DESKTOP_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
+    private val PREFS_NAME = "mediaurl_prefs"
+    private val KEY_BG_MODE = "bg_mode_enabled"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
             setContentView(R.layout.activity_main)
+
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            isBackgroundModeEnabled = prefs.getBoolean(KEY_BG_MODE, false)
 
             initViews()
             setupWebView()
@@ -91,6 +102,10 @@ class MainActivity : AppCompatActivity() {
             // Update streams badge whenever new media URLs are captured
             StreamExtractor.setStreamCountListener { count ->
                 tvStreamBadgeText.text = "🎬 Streams ($count)"
+            }
+
+            if (isBackgroundModeEnabled) {
+                ExtractorService.start(this)
             }
 
             // Load default home
@@ -171,12 +186,15 @@ class MainActivity : AppCompatActivity() {
                 if (reqUrl != null && StreamExtractor.isMediaStreamUrl(reqUrl)) {
                     val referer = request.requestHeaders?.get("Referer") ?: cachedPageUrl
                     val ua = request.requestHeaders?.get("User-Agent") ?: if (isDesktopMode) DESKTOP_USER_AGENT else DEFAULT_USER_AGENT
-                    StreamExtractor.addStream(
+                    val added = StreamExtractor.addStream(
                         url = reqUrl,
                         pageUrl = cachedPageUrl,
                         userAgent = ua,
                         referer = referer
                     )
+                    if (added) {
+                        checkAutoSyncToSupabase(reqUrl, referer)
+                    }
                 }
                 return super.shouldInterceptRequest(view, request)
             }
@@ -344,9 +362,11 @@ class MainActivity : AppCompatActivity() {
     private fun showOptionsMenu(anchor: View) {
         val popup = PopupMenu(this, anchor)
         popup.menu.add(0, 1, 0, if (isDesktopMode) "📱 Mobile Mode" else "💻 Desktop Site")
-        popup.menu.add(0, 2, 1, "🧹 Clear All Detected Streams")
-        popup.menu.add(0, 3, 2, "🍪 Clear Cookies & Cache")
-        popup.menu.add(0, 4, 3, "📤 Share Current URL")
+        popup.menu.add(0, 2, 1, if (isBackgroundModeEnabled) "🟢 Background Mode: ON" else "⚪ Background Mode: OFF")
+        popup.menu.add(0, 3, 2, "⚡ Supabase Live Sync Config")
+        popup.menu.add(0, 4, 3, "🧹 Clear All Detected Streams")
+        popup.menu.add(0, 5, 4, "🍪 Clear Cookies & Cache")
+        popup.menu.add(0, 6, 5, "📤 Share Current URL")
 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -358,11 +378,19 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
                 2 -> {
+                    toggleBackgroundMode()
+                    true
+                }
+                3 -> {
+                    showSupabaseConfigDialog()
+                    true
+                }
+                4 -> {
                     StreamExtractor.clearStreams()
                     Toast.makeText(this, "Streams list cleared", Toast.LENGTH_SHORT).show()
                     true
                 }
-                3 -> {
+                5 -> {
                     try {
                         CookieManager.getInstance().removeAllCookies(null)
                         webView.clearCache(true)
@@ -370,7 +398,7 @@ class MainActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                     true
                 }
-                4 -> {
+                6 -> {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, cachedPageUrl)
@@ -384,8 +412,23 @@ class MainActivity : AppCompatActivity() {
         popup.show()
     }
 
+    private fun toggleBackgroundMode() {
+        isBackgroundModeEnabled = !isBackgroundModeEnabled
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_BG_MODE, isBackgroundModeEnabled)
+            .apply()
+
+        if (isBackgroundModeEnabled) {
+            ExtractorService.start(this)
+            Toast.makeText(this, "🟢 Background Sniffing Enabled (Service Started)", Toast.LENGTH_LONG).show()
+        } else {
+            ExtractorService.stop(this)
+            Toast.makeText(this, "⚪ Background Mode Disabled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // ------------------------------------------------------------------
-    // Modal Dialogs: 1. Streams List & 2. Custom JS Script Automation
+    // Modal Dialogs: 1. Streams List & 2. Custom JS Script & 3. Supabase
     // ------------------------------------------------------------------
 
     private fun showStreamsDialog() {
@@ -410,9 +453,15 @@ class MainActivity : AppCompatActivity() {
         } else {
             tvEmpty.visibility = View.GONE
             rvStreams.visibility = View.VISIBLE
-            val adapter = StreamsAdapter(streams) { stream ->
-                StreamExtractor.copyToClipboard(this, stream.url, "Stream URL")
-            }
+            val adapter = StreamsAdapter(
+                streamList = streams,
+                onSendToSupabase = { stream ->
+                    showSendToSupabaseDialog(stream)
+                },
+                onItemClick = { stream ->
+                    StreamExtractor.copyToClipboard(this, stream.url, "Stream URL")
+                }
+            )
             rvStreams.layoutManager = LinearLayoutManager(this)
             rvStreams.adapter = adapter
         }
@@ -485,6 +534,146 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun showSupabaseConfigDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_supabase_config)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val etUrl = dialog.findViewById<EditText>(R.id.etSupabaseUrl)
+        val etKey = dialog.findViewById<EditText>(R.id.etSupabaseKey)
+        val etTable = dialog.findViewById<EditText>(R.id.etTableName)
+        val switchAuto = dialog.findViewById<SwitchMaterial>(R.id.switchAutoSync)
+        val tvStatus = dialog.findViewById<TextView>(R.id.tvSupabaseStatus)
+        val btnTest = dialog.findViewById<Button>(R.id.btnTestSupabase)
+        val btnSave = dialog.findViewById<Button>(R.id.btnSaveSupabase)
+        val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseSupabaseConfig)
+
+        etUrl.setText(SupabaseSyncManager.getSupabaseUrl(this))
+        etKey.setText(SupabaseSyncManager.getSupabaseKey(this))
+        etTable.setText(SupabaseSyncManager.getTableName(this))
+        switchAuto.isChecked = SupabaseSyncManager.isAutoSyncEnabled(this)
+
+        btnTest.setOnClickListener {
+            val u = etUrl.text.toString().trim()
+            val k = etKey.text.toString().trim()
+            val t = etTable.text.toString().trim()
+
+            tvStatus.text = "Testing connection..."
+            tvStatus.setTextColor(Color.parseColor("#8B949E"))
+
+            SupabaseSyncManager.testConnection(this, u, k, t) { success, msg ->
+                tvStatus.text = msg
+                tvStatus.setTextColor(if (success) Color.parseColor("#4CAF50") else Color.parseColor("#FF5722"))
+            }
+        }
+
+        btnSave.setOnClickListener {
+            val u = etUrl.text.toString().trim()
+            val k = etKey.text.toString().trim()
+            val t = etTable.text.toString().trim()
+            val auto = switchAuto.isChecked
+
+            SupabaseSyncManager.saveConfig(this, u, k, t, auto)
+            Toast.makeText(this, "Supabase config saved!", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        btnClose.setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
+    private fun showSendToSupabaseDialog(stream: DetectedStream) {
+        if (!SupabaseSyncManager.isConfigured(this)) {
+            Toast.makeText(this, "Please configure Supabase in settings first", Toast.LENGTH_LONG).show()
+            showSupabaseConfigDialog()
+            return
+        }
+
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_send_to_supabase)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val etChannelId = dialog.findViewById<EditText>(R.id.etTargetChannelId)
+        val tvPreview = dialog.findViewById<TextView>(R.id.tvStreamUrlPreview)
+        val etReferer = dialog.findViewById<EditText>(R.id.etRefererHeader)
+        val tvStatus = dialog.findViewById<TextView>(R.id.tvSendStatus)
+        val btnConfirm = dialog.findViewById<Button>(R.id.btnConfirmSendSupabase)
+        val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseSendDialog)
+
+        // Pre-fill detected channel ID
+        val detectedChannel = SupabaseSyncManager.autoDetectChannelId(
+            streamUrl = stream.url,
+            pageUrl = stream.pageUrl,
+            title = webView.title.orEmpty()
+        )
+        if (detectedChannel.isNotBlank()) {
+            etChannelId.setText(detectedChannel)
+        }
+
+        tvPreview.text = stream.url
+        etReferer.setText(stream.referer.ifBlank { "https://playsza.xyz/" })
+
+        btnConfirm.setOnClickListener {
+            val chId = etChannelId.text.toString().trim()
+            val ref = etReferer.text.toString().trim()
+
+            if (chId.isBlank()) {
+                Toast.makeText(this, "Please enter Channel ID", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            tvStatus.text = "Pushing update to Supabase table '${SupabaseSyncManager.getTableName(this)}'..."
+            tvStatus.setTextColor(Color.parseColor("#8B949E"))
+            btnConfirm.isEnabled = false
+
+            SupabaseSyncManager.updateChannel(
+                context = this,
+                channelId = chId,
+                streamUrl = stream.url,
+                referer = ref
+            ) { success, msg ->
+                btnConfirm.isEnabled = true
+                tvStatus.text = msg
+                tvStatus.setTextColor(if (success) Color.parseColor("#4CAF50") else Color.parseColor("#FF5722"))
+                if (success) {
+                    Toast.makeText(this, "✅ Updated '$chId' in Supabase!", Toast.LENGTH_SHORT).show()
+                    mainHandler.postDelayed({ dialog.dismiss() }, 1200)
+                }
+            }
+        }
+
+        btnClose.setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
+    private fun checkAutoSyncToSupabase(streamUrl: String, referer: String) {
+        if (!SupabaseSyncManager.isAutoSyncEnabled(this) || !SupabaseSyncManager.isConfigured(this)) return
+
+        val detectedChannel = SupabaseSyncManager.autoDetectChannelId(
+            streamUrl = streamUrl,
+            pageUrl = cachedPageUrl,
+            title = webView.title.orEmpty()
+        )
+        if (detectedChannel.isNotBlank()) {
+            SupabaseSyncManager.updateChannel(
+                context = this,
+                channelId = detectedChannel,
+                streamUrl = streamUrl,
+                referer = referer
+            ) { success, msg ->
+                if (success) {
+                    mainHandler.post {
+                        Toast.makeText(this, "⚡ Auto-synced '$detectedChannel' to Supabase!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
     private fun setupBackHandling() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -511,15 +700,18 @@ class MainActivity : AppCompatActivity() {
             if (url.isNullOrBlank()) return
 
             val ua = if (isDesktopMode) DESKTOP_USER_AGENT else DEFAULT_USER_AGENT
+            val effectiveReferer = referer ?: cachedPageUrl
             val added = StreamExtractor.addStream(
                 url = url,
                 pageUrl = cachedPageUrl,
                 userAgent = ua,
-                referer = referer ?: cachedPageUrl,
+                referer = effectiveReferer,
                 customFormat = null
             )
 
             if (added) {
+                checkAutoSyncToSupabase(url, effectiveReferer)
+
                 val now = System.currentTimeMillis()
                 if (now - lastToastTime > 2500) {
                     lastToastTime = now
@@ -535,10 +727,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        try {
+            webView.onResume()
+            webView.resumeTimers()
+        } catch (_: Exception) {}
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // If Background Mode is enabled, keep WebView timers active so stream sniffing continues!
+        if (!isBackgroundModeEnabled) {
+            try {
+                webView.onPause()
+            } catch (_: Exception) {}
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        try {
-            webView.destroy()
-        } catch (_: Exception) {}
+        if (!isBackgroundModeEnabled) {
+            try {
+                webView.destroy()
+            } catch (_: Exception) {}
+        }
     }
 }

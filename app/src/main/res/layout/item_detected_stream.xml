@@ -73,17 +73,32 @@
         android:gravity="end"
         android:orientation="horizontal">
 
+        <!-- Send to Supabase Button -->
+        <TextView
+            android:id="@+id/btnSendToSupabase"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_pill_script"
+            android:gravity="center"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="📤 Supabase"
+            android:textColor="@color/primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
         <!-- Copy cURL button -->
         <TextView
             android:id="@+id/btnCopyCurl"
             android:layout_width="wrap_content"
             android:layout_height="30dp"
-            android:layout_marginEnd="8dp"
+            android:layout_marginEnd="6dp"
             android:background="?attr/selectableItemBackground"
             android:gravity="center"
             android:paddingStart="8dp"
             android:paddingEnd="8dp"
-            android:text="🔗 Copy cURL"
+            android:text="🔗 cURL"
             android:textColor="@color/text_secondary"
             android:textSize="11.5sp" />
 
@@ -94,9 +109,9 @@
             android:layout_height="30dp"
             android:background="@drawable/bg_button_primary"
             android:gravity="center"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:text="📋 Copy URL"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="📋 Copy"
             android:textColor="#000000"
             android:textSize="11.5sp"
             android:textStyle="bold" />
