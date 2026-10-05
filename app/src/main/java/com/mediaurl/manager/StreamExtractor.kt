@@ -3,7 +3,8 @@ package com.mediaurl.manager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.webkit.WebView
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import com.mediaurl.model.DetectedStream
 import java.util.Collections
@@ -12,10 +13,11 @@ object StreamExtractor {
 
     private val streams = Collections.synchronizedList(mutableListOf<DetectedStream>())
     private var streamCountListener: ((Int) -> Unit)? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun setStreamCountListener(listener: ((Int) -> Unit)?) {
         this.streamCountListener = listener
-        listener?.invoke(streams.size)
+        mainHandler.post { listener?.invoke(streams.size) }
     }
 
     fun getDetectedStreams(): List<DetectedStream> {
@@ -26,7 +28,7 @@ object StreamExtractor {
         synchronized(streams) {
             streams.clear()
         }
-        streamCountListener?.invoke(0)
+        mainHandler.post { streamCountListener?.invoke(0) }
     }
 
     fun isMediaStreamUrl(url: String?): Boolean {
@@ -97,7 +99,9 @@ object StreamExtractor {
             streams.add(0, stream)
         }
 
-        streamCountListener?.invoke(streams.size)
+        mainHandler.post {
+            streamCountListener?.invoke(streams.size)
+        }
         return true
     }
 

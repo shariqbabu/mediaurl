@@ -3,22 +3,27 @@ package com.mediaurl
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
+import android.net.http.SslError
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.KeyEvent
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -27,6 +32,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.PopupMenu
 import android.widget.ProgressBar
@@ -43,6 +49,9 @@ import com.mediaurl.manager.StreamExtractor
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
+    private lateinit var fullscreenContainer: FrameLayout
+    private lateinit var topBar: View
+    private lateinit var bottomBar: View
     private lateinit var etUrl: EditText
     private lateinit var btnClearUrl: ImageButton
     private lateinit var btnBack: ImageButton
@@ -54,35 +63,48 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvStreamBadgeText: TextView
     private lateinit var btnScriptInject: View
 
+    private var customVideoView: View? = null
+    private var customViewCallback: WebChromeClient.CustomViewCallback? = null
     private var isDesktopMode = false
-    private val DEFAULT_USER_AGENT by lazy {
+
+    @Volatile
+    private var cachedPageUrl: String = "https://www.google.com"
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var lastToastTime = 0L
+
+    private val DEFAULT_USER_AGENT =
         "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-    }
     private val DESKTOP_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        try {
+            setContentView(R.layout.activity_main)
 
-        initViews()
-        setupWebView()
-        setupListeners()
-        setupBackHandling()
+            initViews()
+            setupWebView()
+            setupListeners()
+            setupBackHandling()
 
-        // Listen for live stream count updates to refresh badge
-        StreamExtractor.setStreamCountListener { count ->
-            runOnUiThread {
+            // Update streams badge whenever new media URLs are captured
+            StreamExtractor.setStreamCountListener { count ->
                 tvStreamBadgeText.text = "🎬 Streams ($count)"
             }
-        }
 
-        // Load default homepage
-        loadInputUrl("https://www.google.com")
+            // Load default home
+            loadInputUrl("https://www.google.com")
+        } catch (e: Exception) {
+            Toast.makeText(this, "Init Error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun initViews() {
         webView = findViewById(R.id.webView)
+        fullscreenContainer = findViewById(R.id.fullscreenContainer)
+        topBar = findViewById(R.id.topBar)
+        bottomBar = findViewById(R.id.bottomBar)
         etUrl = findViewById(R.id.etUrl)
         btnClearUrl = findViewById(R.id.btnClearUrl)
         btnBack = findViewById(R.id.btnBack)
@@ -108,31 +130,36 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             userAgentString = DEFAULT_USER_AGENT
             cacheMode = WebSettings.LOAD_DEFAULT
+            setSupportMultipleWindows(false)
+            javaScriptCanOpenWindowsAutomatically = true
         }
 
-        CookieManager.getInstance().setAcceptCookie(true)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        try {
+            CookieManager.getInstance().setAcceptCookie(true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        } catch (_: Exception) {}
 
-        // Add JavaScript Interface Bridge for auto-sniffer communication
+        // Add JavaScript Interface Bridge for injected sniffer
         webView.addJavascriptInterface(MediaUrlBridge(), "MediaUrlBridge")
 
-        // 1. In-App WebView Client (No external redirects, network interception)
+        // 1. In-App WebView Client
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
                 val scheme = request.url?.scheme?.lowercase() ?: ""
 
                 if (scheme == "http" || scheme == "https") {
-                    return false // Let WebView load it internally
+                    cachedPageUrl = url
+                    return false // Load internally inside app WebView
                 }
 
-                // Handle intent://, market://, tg:// safely
-                try {
+                // Handle intent://, market://, tg://, etc. without crashing
+                return try {
                     val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
                     startActivity(intent)
-                    return true
+                    true
                 } catch (_: Exception) {
-                    return true // Block unhandled schemes without crashing
+                    true // Block unhandled schemes silently
                 }
             }
 
@@ -142,11 +169,11 @@ class MainActivity : AppCompatActivity() {
             ): WebResourceResponse? {
                 val reqUrl = request?.url?.toString()
                 if (reqUrl != null && StreamExtractor.isMediaStreamUrl(reqUrl)) {
-                    val referer = request.requestHeaders?.get("Referer") ?: webView.url.orEmpty()
-                    val ua = request.requestHeaders?.get("User-Agent") ?: webView.settings.userAgentString
+                    val referer = request.requestHeaders?.get("Referer") ?: cachedPageUrl
+                    val ua = request.requestHeaders?.get("User-Agent") ?: if (isDesktopMode) DESKTOP_USER_AGENT else DEFAULT_USER_AGENT
                     StreamExtractor.addStream(
                         url = reqUrl,
-                        pageUrl = webView.url.orEmpty(),
+                        pageUrl = cachedPageUrl,
                         userAgent = ua,
                         referer = referer
                     )
@@ -154,42 +181,84 @@ class MainActivity : AppCompatActivity() {
                 return super.shouldInterceptRequest(view, request)
             }
 
+            override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
+                // Allow dynamic CDN streaming certs without aborting video player
+                handler?.proceed()
+            }
+
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 progressBar.visibility = View.VISIBLE
-                if (url != null && !etUrl.hasFocus()) {
-                    etUrl.setText(url)
+                if (url != null) {
+                    cachedPageUrl = url
+                    if (!etUrl.hasFocus()) {
+                        etUrl.setText(url)
+                    }
                 }
                 // Inject early sniffer hook
-                view?.evaluateJavascript(StreamExtractor.getSnifferJavaScript(), null)
+                try {
+                    view?.evaluateJavascript(StreamExtractor.getSnifferJavaScript(), null)
+                } catch (_: Exception) {}
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
+                if (url != null) cachedPageUrl = url
                 updateNavButtons()
+
                 // Inject full sniffer hook
-                view?.evaluateJavascript(StreamExtractor.getSnifferJavaScript(), null)
+                try {
+                    view?.evaluateJavascript(StreamExtractor.getSnifferJavaScript(), null)
+                } catch (_: Exception) {}
             }
         }
 
-        // 2. WebChromeClient for smooth loading progress & title updates
+        // 2. WebChromeClient with Fullscreen HTML5 Video Support
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                 super.onProgressChanged(view, newProgress)
                 progressBar.progress = newProgress
-                if (newProgress >= 100) {
-                    progressBar.visibility = View.GONE
-                } else {
-                    progressBar.visibility = View.VISIBLE
-                }
+                progressBar.visibility = if (newProgress >= 100) View.GONE else View.VISIBLE
             }
 
-            override fun onReceivedTitle(view: WebView?, title: String?) {
-                super.onReceivedTitle(view, title)
-                if (!etUrl.hasFocus() && !title.isNullOrBlank() && !title.startsWith("http")) {
-                    // Update hint or text
+            override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                if (customVideoView != null) {
+                    callback?.onCustomViewHidden()
+                    return
                 }
+                customVideoView = view
+                customViewCallback = callback
+
+                fullscreenContainer.addView(
+                    view,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+                fullscreenContainer.visibility = View.VISIBLE
+                webView.visibility = View.GONE
+                topBar.visibility = View.GONE
+                bottomBar.visibility = View.GONE
+
+                window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            }
+
+            override fun onHideCustomView() {
+                if (customVideoView == null) return
+
+                fullscreenContainer.visibility = View.GONE
+                fullscreenContainer.removeAllViews()
+                customVideoView = null
+                customViewCallback?.onCustomViewHidden()
+                customViewCallback = null
+
+                webView.visibility = View.VISIBLE
+                topBar.visibility = View.VISIBLE
+                bottomBar.visibility = View.VISIBLE
+
+                window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
             }
         }
     }
@@ -225,7 +294,6 @@ class MainActivity : AppCompatActivity() {
             etUrl.requestFocus()
         }
 
-        // Top Navigation Buttons
         btnBack.setOnClickListener {
             if (webView.canGoBack()) webView.goBack()
         }
@@ -242,7 +310,6 @@ class MainActivity : AppCompatActivity() {
             showOptionsMenu(view)
         }
 
-        // Bottom Action Buttons
         btnStreamsList.setOnClickListener {
             showStreamsDialog()
         }
@@ -259,6 +326,7 @@ class MainActivity : AppCompatActivity() {
             trimmed.contains(".") && !trimmed.contains(" ") -> "https://$trimmed"
             else -> "https://www.google.com/search?q=${Uri.encode(trimmed)}"
         }
+        cachedPageUrl = targetUrl
         webView.loadUrl(targetUrl)
     }
 
@@ -295,15 +363,17 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
                 3 -> {
-                    CookieManager.getInstance().removeAllCookies(null)
-                    webView.clearCache(true)
-                    Toast.makeText(this, "Cookies and cache cleared", Toast.LENGTH_SHORT).show()
+                    try {
+                        CookieManager.getInstance().removeAllCookies(null)
+                        webView.clearCache(true)
+                        Toast.makeText(this, "Cookies and cache cleared", Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {}
                     true
                 }
                 4 -> {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, webView.url.orEmpty())
+                        putExtra(Intent.EXTRA_TEXT, cachedPageUrl)
                     }
                     startActivity(Intent.createChooser(shareIntent, "Share URL"))
                     true
@@ -395,7 +465,7 @@ class MainActivity : AppCompatActivity() {
 
             tvResult.text = "Executing script..."
             webView.evaluateJavascript(script) { result ->
-                runOnUiThread {
+                mainHandler.post {
                     val cleanResult = result?.removeSurrounding("\"")?.replace("\\n", "\n")?.replace("\\\"", "\"")
                     tvResult.text = "Result:\n${cleanResult ?: "null"}"
                     Toast.makeText(this, "Script Executed!", Toast.LENGTH_SHORT).show()
@@ -418,6 +488,10 @@ class MainActivity : AppCompatActivity() {
     private fun setupBackHandling() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (customVideoView != null) {
+                    webView.webChromeClient?.onHideCustomView()
+                    return
+                }
                 if (webView.canGoBack()) {
                     webView.goBack()
                 } else {
@@ -428,23 +502,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ------------------------------------------------------------------
-    // JavaScript Interface Bridge (Called from Injected Sniffer)
+    // JavaScript Interface Bridge (Thread-Safe Sniffer)
     // ------------------------------------------------------------------
 
     inner class MediaUrlBridge {
         @JavascriptInterface
         fun onStreamDetected(url: String?, source: String?, referer: String?) {
             if (url.isNullOrBlank()) return
+
+            val ua = if (isDesktopMode) DESKTOP_USER_AGENT else DEFAULT_USER_AGENT
             val added = StreamExtractor.addStream(
                 url = url,
-                pageUrl = webView.url.orEmpty(),
-                userAgent = webView.settings.userAgentString,
-                referer = referer ?: webView.url.orEmpty(),
+                pageUrl = cachedPageUrl,
+                userAgent = ua,
+                referer = referer ?: cachedPageUrl,
                 customFormat = null
             )
+
             if (added) {
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, "🎬 Captured: ${StreamExtractor.detectFormat(url)}", Toast.LENGTH_SHORT).show()
+                val now = System.currentTimeMillis()
+                if (now - lastToastTime > 2500) {
+                    lastToastTime = now
+                    mainHandler.post {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "🎬 Detected: ${StreamExtractor.detectFormat(url)}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             }
         }
@@ -452,6 +537,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        webView.destroy()
+        try {
+            webView.destroy()
+        } catch (_: Exception) {}
     }
 }
