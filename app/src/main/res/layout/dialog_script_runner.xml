@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_dialog"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_code"
+            app:tint="@color/primary" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="⚡ Custom JS Automation"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnCloseScript"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close"
+            android:padding="8dp"
+            android:src="@drawable/ic_close"
+            app:tint="@color/text_secondary" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Quick Presets (Tap to insert):"
+        android:textColor="@color/text_secondary"
+        android:textSize="11.5sp" />
+
+    <!-- Preset Automation Buttons Horizontal Scroll -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="8dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnPresetPlayVideo"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="▶️ Auto Play"
+                android:textColor="@color/primary"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/btnPresetClickSelector"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="🎯 Click Element"
+                android:textColor="@color/primary"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/btnPresetRemoveAds"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="🚫 Remove Overlays"
+                android:textColor="@color/primary"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/btnPresetExtractTags"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="🔍 Extract &lt;video&gt;"
+                android:textColor="@color/primary"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/btnPresetGetCookies"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="🍪 Get Cookies"
+                android:textColor="@color/primary"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Code Input Editor -->
+    <EditText
+        android:id="@+id/etScriptCode"
+        android:layout_width="match_parent"
+        android:layout_height="130dp"
+        android:background="@drawable/bg_search_box"
+        android:fontFamily="monospace"
+        android:gravity="top|start"
+        android:hint="// Enter JS automation code here...\ne.g. document.querySelector('button.play').click()"
+        android:inputType="textMultiLine|textNoSuggestions"
+        android:padding="12dp"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_hint"
+        android:textSize="12sp" />
+
+    <!-- Result / Console Output Box -->
+    <TextView
+        android:id="@+id/tvScriptResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_card_item"
+        android:fontFamily="monospace"
+        android:maxLines="4"
+        android:padding="8dp"
+        android:text="Console: Ready"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp" />
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnClearScript"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"
+            android:text="Clear"
+            android:textColor="@color/text_secondary" />
+
+        <Button
+            android:id="@+id/btnRunScript"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_button_primary"
+            android:text="▶️ Execute Script"
+            android:textColor="#000000"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>
