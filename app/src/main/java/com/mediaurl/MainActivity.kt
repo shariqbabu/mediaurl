@@ -3,7 +3,6 @@ package com.mediaurl
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -43,10 +42,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.mediaurl.adapter.BookmarksAdapter
 import com.mediaurl.adapter.StreamsAdapter
+import com.mediaurl.manager.BookmarkManager
 import com.mediaurl.manager.ScriptManager
 import com.mediaurl.manager.StreamExtractor
 import com.mediaurl.manager.SupabaseSyncManager
+import com.mediaurl.model.BookmarkItem
 import com.mediaurl.model.DetectedStream
 import com.mediaurl.service.ExtractorService
 
@@ -58,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomBar: View
     private lateinit var etUrl: EditText
     private lateinit var btnClearUrl: ImageButton
+    private lateinit var btnBookmark: ImageButton
     private lateinit var btnBack: ImageButton
     private lateinit var btnForward: ImageButton
     private lateinit var btnRefresh: ImageButton
@@ -122,6 +125,7 @@ class MainActivity : AppCompatActivity() {
         bottomBar = findViewById(R.id.bottomBar)
         etUrl = findViewById(R.id.etUrl)
         btnClearUrl = findViewById(R.id.btnClearUrl)
+        btnBookmark = findViewById(R.id.btnBookmark)
         btnBack = findViewById(R.id.btnBack)
         btnForward = findViewById(R.id.btnForward)
         btnRefresh = findViewById(R.id.btnRefresh)
@@ -212,6 +216,7 @@ class MainActivity : AppCompatActivity() {
                     if (!etUrl.hasFocus()) {
                         etUrl.setText(url)
                     }
+                    updateBookmarkIcon(url)
                 }
                 // Inject early sniffer hook
                 try {
@@ -222,7 +227,10 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
-                if (url != null) cachedPageUrl = url
+                if (url != null) {
+                    cachedPageUrl = url
+                    updateBookmarkIcon(url)
+                }
                 updateNavButtons()
 
                 // Inject full sniffer hook
@@ -312,6 +320,23 @@ class MainActivity : AppCompatActivity() {
             etUrl.requestFocus()
         }
 
+        // Bookmark Toggle / Manage
+        btnBookmark.setOnClickListener {
+            val title = webView.title.orEmpty().ifBlank { cachedPageUrl }
+            val added = BookmarkManager.toggleBookmark(this, title, cachedPageUrl)
+            updateBookmarkIcon(cachedPageUrl)
+            if (added) {
+                Toast.makeText(this, "⭐ Saved to Bookmarks", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Removed from Bookmarks", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnBookmark.setOnLongClickListener {
+            showBookmarksDialog()
+            true
+        }
+
         btnBack.setOnClickListener {
             if (webView.canGoBack()) webView.goBack()
         }
@@ -337,6 +362,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateBookmarkIcon(url: String) {
+        val isBookmarked = BookmarkManager.isBookmarked(this, url)
+        if (isBookmarked) {
+            btnBookmark.setImageResource(R.drawable.ic_bookmark)
+            btnBookmark.setColorFilter(Color.parseColor("#FFD700"))
+        } else {
+            btnBookmark.setImageResource(R.drawable.ic_bookmark_border)
+            btnBookmark.setColorFilter(Color.parseColor("#8B949E"))
+        }
+    }
+
     private fun loadInputUrl(input: String) {
         val trimmed = input.trim()
         val targetUrl = when {
@@ -345,6 +381,7 @@ class MainActivity : AppCompatActivity() {
             else -> "https://www.google.com/search?q=${Uri.encode(trimmed)}"
         }
         cachedPageUrl = targetUrl
+        updateBookmarkIcon(targetUrl)
         webView.loadUrl(targetUrl)
     }
 
@@ -362,11 +399,12 @@ class MainActivity : AppCompatActivity() {
     private fun showOptionsMenu(anchor: View) {
         val popup = PopupMenu(this, anchor)
         popup.menu.add(0, 1, 0, if (isDesktopMode) "📱 Mobile Mode" else "💻 Desktop Site")
-        popup.menu.add(0, 2, 1, if (isBackgroundModeEnabled) "🟢 Background Mode: ON" else "⚪ Background Mode: OFF")
-        popup.menu.add(0, 3, 2, "⚡ Supabase Live Sync Config")
-        popup.menu.add(0, 4, 3, "🧹 Clear All Detected Streams")
-        popup.menu.add(0, 5, 4, "🍪 Clear Cookies & Cache")
-        popup.menu.add(0, 6, 5, "📤 Share Current URL")
+        popup.menu.add(0, 2, 1, "⭐ Bookmarks Manager")
+        popup.menu.add(0, 3, 2, if (isBackgroundModeEnabled) "🟢 Background Mode: ON" else "⚪ Background Mode: OFF")
+        popup.menu.add(0, 4, 3, "⚡ Supabase Live Sync Config")
+        popup.menu.add(0, 5, 4, "🧹 Clear All Detected Streams")
+        popup.menu.add(0, 6, 5, "🍪 Clear Cookies & Cache")
+        popup.menu.add(0, 7, 6, "📤 Share Current URL")
 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -378,19 +416,23 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
                 2 -> {
-                    toggleBackgroundMode()
+                    showBookmarksDialog()
                     true
                 }
                 3 -> {
-                    showSupabaseConfigDialog()
+                    toggleBackgroundMode()
                     true
                 }
                 4 -> {
+                    showSupabaseConfigDialog()
+                    true
+                }
+                5 -> {
                     StreamExtractor.clearStreams()
                     Toast.makeText(this, "Streams list cleared", Toast.LENGTH_SHORT).show()
                     true
                 }
-                5 -> {
+                6 -> {
                     try {
                         CookieManager.getInstance().removeAllCookies(null)
                         webView.clearCache(true)
@@ -398,7 +440,7 @@ class MainActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                     true
                 }
-                6 -> {
+                7 -> {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, cachedPageUrl)
@@ -428,8 +470,67 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ------------------------------------------------------------------
-    // Modal Dialogs: 1. Streams List & 2. Custom JS Script & 3. Supabase
+    // Modal Dialogs: Bookmarks, Streams List, JS Script & Supabase
     // ------------------------------------------------------------------
+
+    private fun showBookmarksDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_bookmarks)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val tvTitle = dialog.findViewById<TextView>(R.id.tvBookmarksDialogTitle)
+        val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseBookmarks)
+        val btnAddCurrent = dialog.findViewById<Button>(R.id.btnAddCurrentBookmark)
+        val rvBookmarks = dialog.findViewById<RecyclerView>(R.id.rvBookmarks)
+        val tvEmpty = dialog.findViewById<TextView>(R.id.tvEmptyBookmarks)
+
+        fun refreshList() {
+            val list = BookmarkManager.getBookmarks(this)
+            tvTitle.text = "⭐ Bookmarks (${list.size})"
+
+            if (list.isEmpty()) {
+                tvEmpty.visibility = View.VISIBLE
+                rvBookmarks.visibility = View.GONE
+            } else {
+                tvEmpty.visibility = View.GONE
+                rvBookmarks.visibility = View.VISIBLE
+            }
+
+            val adapter = BookmarksAdapter(
+                bookmarkList = list,
+                onItemClick = { bookmark ->
+                    dialog.dismiss()
+                    loadInputUrl(bookmark.url)
+                },
+                onDeleteClick = { bookmark ->
+                    BookmarkManager.removeBookmark(this, bookmark.url)
+                    updateBookmarkIcon(cachedPageUrl)
+                    refreshList()
+                    Toast.makeText(this, "Bookmark deleted", Toast.LENGTH_SHORT).show()
+                }
+            )
+            rvBookmarks.layoutManager = LinearLayoutManager(this)
+            rvBookmarks.adapter = adapter
+        }
+
+        btnAddCurrent.setOnClickListener {
+            val pageTitle = webView.title.orEmpty().ifBlank { cachedPageUrl }
+            val added = BookmarkManager.addBookmark(this, pageTitle, cachedPageUrl)
+            if (added) {
+                updateBookmarkIcon(cachedPageUrl)
+                refreshList()
+                Toast.makeText(this, "⭐ Added to Bookmarks", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Already bookmarked", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnClose.setOnClickListener { dialog.dismiss() }
+        refreshList()
+        dialog.show()
+    }
 
     private fun showStreamsDialog() {
         val dialog = Dialog(this)
@@ -737,7 +838,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        // If Background Mode is enabled, keep WebView timers active so stream sniffing continues!
         if (!isBackgroundModeEnabled) {
             try {
                 webView.onPause()
