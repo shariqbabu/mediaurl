@@ -477,11 +477,14 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setContentView(R.layout.dialog_bookmarks)
+        dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(true)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val tvTitle = dialog.findViewById<TextView>(R.id.tvBookmarksDialogTitle)
         val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseBookmarks)
+        val btnDone = dialog.findViewById<Button>(R.id.btnDoneBookmarks)
         val btnAddCurrent = dialog.findViewById<Button>(R.id.btnAddCurrentBookmark)
         val rvBookmarks = dialog.findViewById<RecyclerView>(R.id.rvBookmarks)
         val tvEmpty = dialog.findViewById<TextView>(R.id.tvEmptyBookmarks)
@@ -528,6 +531,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnClose.setOnClickListener { dialog.dismiss() }
+        btnDone.setOnClickListener { dialog.dismiss() }
         refreshList()
         dialog.show()
     }
@@ -536,11 +540,14 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setContentView(R.layout.dialog_streams_list)
+        dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(true)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val tvTitle = dialog.findViewById<TextView>(R.id.tvDialogTitle)
         val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseDialog)
+        val btnDone = dialog.findViewById<Button>(R.id.btnDoneStreams)
         val btnClearAll = dialog.findViewById<ImageButton>(R.id.btnClearAll)
         val rvStreams = dialog.findViewById<RecyclerView>(R.id.rvStreams)
         val tvEmpty = dialog.findViewById<TextView>(R.id.tvEmptyStreams)
@@ -577,6 +584,10 @@ class MainActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
+        btnDone.setOnClickListener {
+            dialog.dismiss()
+        }
+
         dialog.show()
     }
 
@@ -584,8 +595,10 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setContentView(R.layout.dialog_script_runner)
+        dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(true)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val etScriptCode = dialog.findViewById<EditText>(R.id.etScriptCode)
         val tvResult = dialog.findViewById<TextView>(R.id.tvScriptResult)
@@ -639,8 +652,10 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setContentView(R.layout.dialog_supabase_config)
+        dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(true)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val etUrl = dialog.findViewById<EditText>(R.id.etSupabaseUrl)
         val etKey = dialog.findViewById<EditText>(R.id.etSupabaseKey)
@@ -695,8 +710,10 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setContentView(R.layout.dialog_send_to_supabase)
+        dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(true)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val etChannelId = dialog.findViewById<EditText>(R.id.etTargetChannelId)
         val tvPreview = dialog.findViewById<TextView>(R.id.tvStreamUrlPreview)

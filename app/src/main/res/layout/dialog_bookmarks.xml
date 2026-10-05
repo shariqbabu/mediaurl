@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_margin="16dp"
     android:background="@drawable/bg_dialog"
     android:orientation="vertical"
     android:padding="16dp">
@@ -34,8 +35,8 @@
 
         <ImageButton
             android:id="@+id/btnCloseBookmarks"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Close"
             android:padding="8dp"
@@ -62,25 +63,40 @@
         android:layout_marginBottom="10dp"
         android:background="@color/border_subtle" />
 
-    <!-- Bookmarks RecyclerView -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvBookmarks"
+    <!-- Bookmarks Container -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:maxHeight="380dp"
-        tools:itemCount="3"
-        tools:listitem="@layout/item_bookmark" />
+        android:layout_height="wrap_content">
 
-    <!-- Empty State -->
-    <TextView
-        android:id="@+id/tvEmptyBookmarks"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvBookmarks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxHeight="320dp"
+            android:nestedScrollingEnabled="true"
+            tools:itemCount="3"
+            tools:listitem="@layout/item_bookmark" />
+
+        <!-- Empty State -->
+        <TextView
+            android:id="@+id/tvEmptyBookmarks"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:gravity="center"
+            android:text="No bookmarks saved yet.\nTap 'Bookmark Current Page' to add."
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </FrameLayout>
+
+    <!-- Close Action Button -->
+    <Button
+        android:id="@+id/btnDoneBookmarks"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:gravity="center"
-        android:text="No bookmarks saved yet.\nTap 'Bookmark Current Page' to add."
-        android:textColor="@color/text_secondary"
-        android:textSize="13sp"
-        android:visibility="gone"
-        tools:visibility="visible" />
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:text="Close"
+        android:textColor="@color/text_secondary" />
 </LinearLayout>
