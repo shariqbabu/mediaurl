@@ -1,0 +1,7 @@
+-keep class com.mediaurl.** { *; }
+-keep class okhttp3.** { *; }
+-dontwarn okhttp3.**
+-dontwarn javax.annotation.**
+-dontwarn javax.inject.**
+-dontwarn sun.misc.**
+-dontwarn java.lang.invoke.**
