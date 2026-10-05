@@ -8,6 +8,7 @@ import android.webkit.WebView
 import android.widget.Button
 import android.widget.ListView
 import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.mediaurl.service.ExtractorService
 import com.mediaurl.manager.StreamExtractor
@@ -22,15 +23,24 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        webView = findViewById(R.id.webView)
-        extractButton = findViewById(R.id.extractButton)
-        streamListView = findViewById(R.id.streamListView)
+        try {
+            setContentView(R.layout.activity_main)
 
-        setupWebView()
-        setupUI()
-        startExtractorService()
+            webView = findViewById(R.id.webView)
+            extractButton = findViewById(R.id.extractButton)
+            streamListView = findViewById(R.id.streamListView)
+
+            setupWebView()
+            setupUI()
+
+            // Load default page
+            webView.loadUrl("https://www.google.com")
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            e.printStackTrace()
+        }
     }
 
     private fun setupWebView() {
@@ -41,9 +51,6 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             userAgentString = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36"
         }
-
-        // Network interceptor for stream detection
-        StreamExtractor.setupInterceptor(webView)
     }
 
     private fun setupUI() {
@@ -56,20 +63,15 @@ class MainActivity : AppCompatActivity() {
                 extractedStreams.add("${stream.type}: ${stream.url}")
             }
             streamAdapter.notifyDataSetChanged()
+
+            if (extractedStreams.isEmpty()) {
+                Toast.makeText(this, "No streams detected yet", Toast.LENGTH_SHORT).show()
+            }
         }
 
         streamListView.setOnItemClickListener { _, _, position, _ ->
             val stream = extractedStreams[position]
             StreamExtractor.copyToClipboard(this, stream)
-        }
-    }
-
-    private fun startExtractorService() {
-        val intent = Intent(this, ExtractorService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
         }
     }
 
