@@ -115,7 +115,7 @@ object StreamExtractor {
     }
 
     /**
-     * Injects JavaScript XHR & Fetch sniffer to intercept network requests and dynamic media tags
+     * Injects JavaScript XHR & Fetch sniffer to intercept network requests, HLS.js, HTMLMediaElement, and inline script sources
      */
     fun getSnifferJavaScript(): String {
         return """
@@ -126,6 +126,7 @@ object StreamExtractor {
                 function reportStream(url, source) {
                     if (!url || typeof url !== 'string') return;
                     if (url.startsWith('blob:') || url.startsWith('data:')) return;
+                    if (!url.includes('.m3u8') && !url.includes('.mpd') && !url.includes('.mp4') && !url.includes('/hls/') && !url.includes('token') && !url.includes('expires=')) return;
                     try {
                         if (window.MediaUrlBridge && window.MediaUrlBridge.onStreamDetected) {
                             window.MediaUrlBridge.onStreamDetected(url, source || 'JS_SNIFFER', window.location.href);
@@ -149,17 +150,76 @@ object StreamExtractor {
                     return origFetch.apply(this, arguments);
                 };
 
-                // 3. Scan DOM for <video>, <source>, <audio>, <iframe> elements
+                // 3. Hook HTMLMediaElement.prototype.src setter
+                try {
+                    const origSrcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+                    if (origSrcDesc && origSrcDesc.set) {
+                        Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+                            set: function(val) {
+                                reportStream(val, 'MEDIA_SRC_SET');
+                                return origSrcDesc.set.apply(this, arguments);
+                            },
+                            get: origSrcDesc.get
+                        });
+                    }
+                } catch(e) {}
+
+                // 4. Hook Hls.js loadSource
+                function hookHlsJs() {
+                    try {
+                        if (window.Hls && window.Hls.prototype && !window.Hls.prototype.__hooked) {
+                            window.Hls.prototype.__hooked = true;
+                            const origLoad = window.Hls.prototype.loadSource;
+                            window.Hls.prototype.loadSource = function(url) {
+                                reportStream(url, 'HLS_JS');
+                                return origLoad.apply(this, arguments);
+                            };
+                        }
+                    } catch(e) {}
+                }
+                hookHlsJs();
+                setInterval(hookHlsJs, 1500);
+
+                // 5. Scan DOM for <video>, <source>, <audio>, <iframe> elements
                 function scanMediaElements() {
                     document.querySelectorAll('video, audio, source, iframe').forEach(el => {
                         const src = el.src || el.getAttribute('src');
                         if (src) reportStream(src, 'TAG_' + el.tagName);
                     });
+
+                    // Scan inline script tags for .m3u8 regex matches
+                    const m3u8Regex = /https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*/gi;
+                    document.querySelectorAll('script').forEach(s => {
+                        const code = s.textContent || s.innerText || '';
+                        const matches = code.match(m3u8Regex);
+                        if (matches) {
+                            matches.forEach(m => reportStream(m, 'INLINE_SCRIPT'));
+                        }
+                    });
+
+                    // Check common player global variables
+                    for (let key of ['source', 'stream', 'streamUrl', 'm3u8', 'file', 'videoSrc', 'hlsUrl']) {
+                        if (window[key] && typeof window[key] === 'string') {
+                            reportStream(window[key], 'VAR_' + key);
+                        }
+                    }
                 }
                 scanMediaElements();
-                setInterval(scanMediaElements, 2500);
+                setInterval(scanMediaElements, 2000);
 
-                // 4. Observe Dynamic DOM Additions
+                // 6. Auto-kickstart video players
+                function autoKickstart() {
+                    document.querySelectorAll('video').forEach(v => {
+                        try { v.muted = true; v.play(); } catch(e) {}
+                    });
+                    document.querySelectorAll('.jw-display-icon-container, .vjs-big-play-button, button[class*="play"], div[class*="play"]').forEach(b => {
+                        try { b.click(); } catch(e) {}
+                    });
+                }
+                setTimeout(autoKickstart, 1500);
+                setTimeout(autoKickstart, 3500);
+
+                // 7. Observe Dynamic DOM Additions
                 try {
                     const observer = new MutationObserver(function(mutations) {
                         mutations.forEach(function(m) {
