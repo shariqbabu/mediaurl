@@ -233,16 +233,14 @@ object StreamExtractor {
                         }
                     }
 
-                    // Check global function return values (e.g. ltiyTem())
-                    for (let fnName in window) {
-                        if (typeof window[fnName] === 'function' && fnName.length > 4 && fnName.length < 12) {
-                            try {
-                                const res = window[fnName]();
-                                if (typeof res === 'string' && res.includes('.m3u8')) {
-                                    reportStream(res, 'GLOBAL_FN_' + fnName);
-                                }
-                            } catch(e) {}
-                        }
+                    // Check explicit generator functions if they exist
+                    if (typeof window.ltiyTem === 'function') {
+                        try {
+                            const res = window.ltiyTem();
+                            if (typeof res === 'string' && res.includes('.m3u8')) {
+                                reportStream(res, 'FN_ltiyTem');
+                            }
+                        } catch(e) {}
                     }
                 }
                 scanMediaElements();
