@@ -4,9 +4,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_dialog"
+    android:background="@drawable/bg_bottom_sheet"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:paddingStart="16dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="24dp">
+
+    <!-- Center Drag Handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_drag_handle" />
 
     <!-- Header -->
     <LinearLayout
@@ -33,8 +45,8 @@
 
         <ImageButton
             android:id="@+id/btnCloseScript"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Close"
             android:padding="8dp"
@@ -62,6 +74,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnPresetCaptcha"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="🤖 Click Captcha"
+                android:textColor="@color/primary"
+                android:textSize="11sp" />
 
             <Button
                 android:id="@+id/btnPresetPlayVideo"
@@ -128,7 +152,7 @@
     <EditText
         android:id="@+id/etScriptCode"
         android:layout_width="match_parent"
-        android:layout_height="130dp"
+        android:layout_height="120dp"
         android:background="@drawable/bg_search_box"
         android:fontFamily="monospace"
         android:gravity="top|start"
@@ -147,7 +171,7 @@
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_card_item"
         android:fontFamily="monospace"
-        android:maxLines="4"
+        android:maxLines="3"
         android:padding="8dp"
         android:text="Console: Ready"
         android:textColor="@color/text_secondary"

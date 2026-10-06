@@ -41,6 +41,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.mediaurl.adapter.BookmarksAdapter
 import com.mediaurl.adapter.StreamsAdapter
@@ -470,35 +471,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ------------------------------------------------------------------
-    // Modal Dialogs: Bookmarks, Streams List, JS Script & Supabase
+    // Modal BottomSheet Dialogs: Bookmarks, Streams List, JS Script & Supabase
     // ------------------------------------------------------------------
 
     private fun showBookmarksDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val dialog = BottomSheetDialog(this)
         dialog.setContentView(R.layout.dialog_bookmarks)
         dialog.setCancelable(true)
         dialog.setCanceledOnTouchOutside(true)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val tvTitle = dialog.findViewById<TextView>(R.id.tvBookmarksDialogTitle)
         val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseBookmarks)
-        val btnDone = dialog.findViewById<Button>(R.id.btnDoneBookmarks)
         val btnAddCurrent = dialog.findViewById<Button>(R.id.btnAddCurrentBookmark)
         val rvBookmarks = dialog.findViewById<RecyclerView>(R.id.rvBookmarks)
         val tvEmpty = dialog.findViewById<TextView>(R.id.tvEmptyBookmarks)
 
         fun refreshList() {
             val list = BookmarkManager.getBookmarks(this)
-            tvTitle.text = "⭐ Bookmarks (${list.size})"
+            tvTitle?.text = "⭐ Bookmarks (${list.size})"
 
             if (list.isEmpty()) {
-                tvEmpty.visibility = View.VISIBLE
-                rvBookmarks.visibility = View.GONE
+                tvEmpty?.visibility = View.VISIBLE
+                rvBookmarks?.visibility = View.GONE
             } else {
-                tvEmpty.visibility = View.GONE
-                rvBookmarks.visibility = View.VISIBLE
+                tvEmpty?.visibility = View.GONE
+                rvBookmarks?.visibility = View.VISIBLE
             }
 
             val adapter = BookmarksAdapter(
@@ -514,11 +511,11 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "Bookmark deleted", Toast.LENGTH_SHORT).show()
                 }
             )
-            rvBookmarks.layoutManager = LinearLayoutManager(this)
-            rvBookmarks.adapter = adapter
+            rvBookmarks?.layoutManager = LinearLayoutManager(this)
+            rvBookmarks?.adapter = adapter
         }
 
-        btnAddCurrent.setOnClickListener {
+        btnAddCurrent?.setOnClickListener {
             val pageTitle = webView.title.orEmpty().ifBlank { cachedPageUrl }
             val added = BookmarkManager.addBookmark(this, pageTitle, cachedPageUrl)
             if (added) {
@@ -530,37 +527,32 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        btnClose.setOnClickListener { dialog.dismiss() }
-        btnDone.setOnClickListener { dialog.dismiss() }
+        btnClose?.setOnClickListener { dialog.dismiss() }
         refreshList()
         dialog.show()
     }
 
     private fun showStreamsDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val dialog = BottomSheetDialog(this)
         dialog.setContentView(R.layout.dialog_streams_list)
         dialog.setCancelable(true)
         dialog.setCanceledOnTouchOutside(true)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val tvTitle = dialog.findViewById<TextView>(R.id.tvDialogTitle)
         val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseDialog)
-        val btnDone = dialog.findViewById<Button>(R.id.btnDoneStreams)
         val btnClearAll = dialog.findViewById<ImageButton>(R.id.btnClearAll)
         val rvStreams = dialog.findViewById<RecyclerView>(R.id.rvStreams)
         val tvEmpty = dialog.findViewById<TextView>(R.id.tvEmptyStreams)
 
         val streams = StreamExtractor.getDetectedStreams()
-        tvTitle.text = "Detected Streams (${streams.size})"
+        tvTitle?.text = "Detected Streams (${streams.size})"
 
         if (streams.isEmpty()) {
-            tvEmpty.visibility = View.VISIBLE
-            rvStreams.visibility = View.GONE
+            tvEmpty?.visibility = View.VISIBLE
+            rvStreams?.visibility = View.GONE
         } else {
-            tvEmpty.visibility = View.GONE
-            rvStreams.visibility = View.VISIBLE
+            tvEmpty?.visibility = View.GONE
+            rvStreams?.visibility = View.VISIBLE
             val adapter = StreamsAdapter(
                 streamList = streams,
                 onSendToSupabase = { stream ->
@@ -570,21 +562,17 @@ class MainActivity : AppCompatActivity() {
                     StreamExtractor.copyToClipboard(this, stream.url, "Stream URL")
                 }
             )
-            rvStreams.layoutManager = LinearLayoutManager(this)
-            rvStreams.adapter = adapter
+            rvStreams?.layoutManager = LinearLayoutManager(this)
+            rvStreams?.adapter = adapter
         }
 
-        btnClearAll.setOnClickListener {
+        btnClearAll?.setOnClickListener {
             StreamExtractor.clearStreams()
             dialog.dismiss()
             Toast.makeText(this, "Streams cleared", Toast.LENGTH_SHORT).show()
         }
 
-        btnClose.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        btnDone.setOnClickListener {
+        btnClose?.setOnClickListener {
             dialog.dismiss()
         }
 
@@ -592,13 +580,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showScriptDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val dialog = BottomSheetDialog(this)
         dialog.setContentView(R.layout.dialog_script_runner)
         dialog.setCancelable(true)
         dialog.setCanceledOnTouchOutside(true)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val etScriptCode = dialog.findViewById<EditText>(R.id.etScriptCode)
         val tvResult = dialog.findViewById<TextView>(R.id.tvScriptResult)
@@ -607,41 +592,43 @@ class MainActivity : AppCompatActivity() {
         val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseScript)
 
         // Preset buttons
+        val btnPresetCaptcha = dialog.findViewById<Button>(R.id.btnPresetCaptcha)
         val btnPresetPlay = dialog.findViewById<Button>(R.id.btnPresetPlayVideo)
         val btnPresetClick = dialog.findViewById<Button>(R.id.btnPresetClickSelector)
         val btnPresetRemove = dialog.findViewById<Button>(R.id.btnPresetRemoveAds)
         val btnPresetExtract = dialog.findViewById<Button>(R.id.btnPresetExtractTags)
         val btnPresetCookies = dialog.findViewById<Button>(R.id.btnPresetGetCookies)
 
-        btnPresetPlay.setOnClickListener { etScriptCode.setText(ScriptManager.PRESET_AUTO_PLAY) }
-        btnPresetClick.setOnClickListener { etScriptCode.setText(ScriptManager.PRESET_CLICK_SELECTOR) }
-        btnPresetRemove.setOnClickListener { etScriptCode.setText(ScriptManager.PRESET_REMOVE_OVERLAYS) }
-        btnPresetExtract.setOnClickListener { etScriptCode.setText(ScriptManager.PRESET_EXTRACT_TAGS) }
-        btnPresetCookies.setOnClickListener { etScriptCode.setText(ScriptManager.PRESET_GET_COOKIES) }
+        btnPresetCaptcha?.setOnClickListener { etScriptCode?.setText(ScriptManager.PRESET_CLICK_CAPTCHA) }
+        btnPresetPlay?.setOnClickListener { etScriptCode?.setText(ScriptManager.PRESET_AUTO_PLAY) }
+        btnPresetClick?.setOnClickListener { etScriptCode?.setText(ScriptManager.PRESET_CLICK_SELECTOR) }
+        btnPresetRemove?.setOnClickListener { etScriptCode?.setText(ScriptManager.PRESET_REMOVE_OVERLAYS) }
+        btnPresetExtract?.setOnClickListener { etScriptCode?.setText(ScriptManager.PRESET_EXTRACT_TAGS) }
+        btnPresetCookies?.setOnClickListener { etScriptCode?.setText(ScriptManager.PRESET_GET_COOKIES) }
 
-        btnRun.setOnClickListener {
-            val script = etScriptCode.text.toString().trim()
+        btnRun?.setOnClickListener {
+            val script = etScriptCode?.text?.toString()?.trim().orEmpty()
             if (script.isBlank()) {
                 Toast.makeText(this, "Please enter JS code", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            tvResult.text = "Executing script..."
+            tvResult?.text = "Executing script..."
             webView.evaluateJavascript(script) { result ->
                 mainHandler.post {
                     val cleanResult = result?.removeSurrounding("\"")?.replace("\\n", "\n")?.replace("\\\"", "\"")
-                    tvResult.text = "Result:\n${cleanResult ?: "null"}"
+                    tvResult?.text = "Result:\n${cleanResult ?: "null"}"
                     Toast.makeText(this, "Script Executed!", Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
-        btnClear.setOnClickListener {
-            etScriptCode.setText("")
-            tvResult.text = "Console: Cleared"
+        btnClear?.setOnClickListener {
+            etScriptCode?.setText("")
+            tvResult?.text = "Console: Cleared"
         }
 
-        btnClose.setOnClickListener {
+        btnClose?.setOnClickListener {
             dialog.dismiss()
         }
 
@@ -649,13 +636,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSupabaseConfigDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val dialog = BottomSheetDialog(this)
         dialog.setContentView(R.layout.dialog_supabase_config)
         dialog.setCancelable(true)
         dialog.setCanceledOnTouchOutside(true)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val etUrl = dialog.findViewById<EditText>(R.id.etSupabaseUrl)
         val etKey = dialog.findViewById<EditText>(R.id.etSupabaseKey)
@@ -666,37 +650,37 @@ class MainActivity : AppCompatActivity() {
         val btnSave = dialog.findViewById<Button>(R.id.btnSaveSupabase)
         val btnClose = dialog.findViewById<ImageButton>(R.id.btnCloseSupabaseConfig)
 
-        etUrl.setText(SupabaseSyncManager.getSupabaseUrl(this))
-        etKey.setText(SupabaseSyncManager.getSupabaseKey(this))
-        etTable.setText(SupabaseSyncManager.getTableName(this))
-        switchAuto.isChecked = SupabaseSyncManager.isAutoSyncEnabled(this)
+        etUrl?.setText(SupabaseSyncManager.getSupabaseUrl(this))
+        etKey?.setText(SupabaseSyncManager.getSupabaseKey(this))
+        etTable?.setText(SupabaseSyncManager.getTableName(this))
+        switchAuto?.isChecked = SupabaseSyncManager.isAutoSyncEnabled(this)
 
-        btnTest.setOnClickListener {
-            val u = etUrl.text.toString().trim()
-            val k = etKey.text.toString().trim()
-            val t = etTable.text.toString().trim()
+        btnTest?.setOnClickListener {
+            val u = etUrl?.text?.toString()?.trim().orEmpty()
+            val k = etKey?.text?.toString()?.trim().orEmpty()
+            val t = etTable?.text?.toString()?.trim().orEmpty()
 
-            tvStatus.text = "Testing connection..."
-            tvStatus.setTextColor(Color.parseColor("#8B949E"))
+            tvStatus?.text = "Testing connection..."
+            tvStatus?.setTextColor(Color.parseColor("#8B949E"))
 
             SupabaseSyncManager.testConnection(this, u, k, t) { success, msg ->
-                tvStatus.text = msg
-                tvStatus.setTextColor(if (success) Color.parseColor("#4CAF50") else Color.parseColor("#FF5722"))
+                tvStatus?.text = msg
+                tvStatus?.setTextColor(if (success) Color.parseColor("#4CAF50") else Color.parseColor("#FF5722"))
             }
         }
 
-        btnSave.setOnClickListener {
-            val u = etUrl.text.toString().trim()
-            val k = etKey.text.toString().trim()
-            val t = etTable.text.toString().trim()
-            val auto = switchAuto.isChecked
+        btnSave?.setOnClickListener {
+            val u = etUrl?.text?.toString()?.trim().orEmpty()
+            val k = etKey?.text?.toString()?.trim().orEmpty()
+            val t = etTable?.text?.toString()?.trim().orEmpty()
+            val auto = switchAuto?.isChecked == true
 
             SupabaseSyncManager.saveConfig(this, u, k, t, auto)
             Toast.makeText(this, "Supabase config saved!", Toast.LENGTH_SHORT).show()
             dialog.dismiss()
         }
 
-        btnClose.setOnClickListener { dialog.dismiss() }
+        btnClose?.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 
@@ -707,13 +691,10 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val dialog = BottomSheetDialog(this)
         dialog.setContentView(R.layout.dialog_send_to_supabase)
         dialog.setCancelable(true)
         dialog.setCanceledOnTouchOutside(true)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val etChannelId = dialog.findViewById<EditText>(R.id.etTargetChannelId)
         val tvPreview = dialog.findViewById<TextView>(R.id.tvStreamUrlPreview)
@@ -729,23 +710,23 @@ class MainActivity : AppCompatActivity() {
             title = webView.title.orEmpty()
         )
         if (detectedChannel.isNotBlank()) {
-            etChannelId.setText(detectedChannel)
+            etChannelId?.setText(detectedChannel)
         }
 
-        tvPreview.text = stream.url
-        etReferer.setText(stream.referer.ifBlank { "https://playsza.xyz/" })
+        tvPreview?.text = stream.url
+        etReferer?.setText(stream.referer.ifBlank { "https://playsza.xyz/" })
 
-        btnConfirm.setOnClickListener {
-            val chId = etChannelId.text.toString().trim()
-            val ref = etReferer.text.toString().trim()
+        btnConfirm?.setOnClickListener {
+            val chId = etChannelId?.text?.toString()?.trim().orEmpty()
+            val ref = etReferer?.text?.toString()?.trim().orEmpty()
 
             if (chId.isBlank()) {
                 Toast.makeText(this, "Please enter Channel ID", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            tvStatus.text = "Pushing update to Supabase table '${SupabaseSyncManager.getTableName(this)}'..."
-            tvStatus.setTextColor(Color.parseColor("#8B949E"))
+            tvStatus?.text = "Pushing update to Supabase table '${SupabaseSyncManager.getTableName(this)}'..."
+            tvStatus?.setTextColor(Color.parseColor("#8B949E"))
             btnConfirm.isEnabled = false
 
             SupabaseSyncManager.updateChannel(
@@ -755,8 +736,8 @@ class MainActivity : AppCompatActivity() {
                 referer = ref
             ) { success, msg ->
                 btnConfirm.isEnabled = true
-                tvStatus.text = msg
-                tvStatus.setTextColor(if (success) Color.parseColor("#4CAF50") else Color.parseColor("#FF5722"))
+                tvStatus?.text = msg
+                tvStatus?.setTextColor(if (success) Color.parseColor("#4CAF50") else Color.parseColor("#FF5722"))
                 if (success) {
                     Toast.makeText(this, "✅ Updated '$chId' in Supabase!", Toast.LENGTH_SHORT).show()
                     mainHandler.postDelayed({ dialog.dismiss() }, 1200)
@@ -764,7 +745,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        btnClose.setOnClickListener { dialog.dismiss() }
+        btnClose?.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 

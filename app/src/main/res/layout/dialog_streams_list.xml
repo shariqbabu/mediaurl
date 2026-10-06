@@ -4,10 +4,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="16dp"
-    android:background="@drawable/bg_dialog"
+    android:background="@drawable/bg_bottom_sheet"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:paddingStart="16dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="20dp">
+
+    <!-- Center Drag Handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_drag_handle" />
 
     <!-- Header: Title + Clear Button + Close Button -->
     <LinearLayout
@@ -70,7 +81,7 @@
             android:id="@+id/rvStreams"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:maxHeight="360dp"
+            android:maxHeight="380dp"
             android:nestedScrollingEnabled="true"
             tools:itemCount="3"
             tools:listitem="@layout/item_detected_stream" />
@@ -87,14 +98,4 @@
             android:visibility="gone"
             tools:visibility="visible" />
     </FrameLayout>
-
-    <!-- Close Action Button -->
-    <Button
-        android:id="@+id/btnDoneStreams"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="8dp"
-        android:text="Close"
-        android:textColor="@color/text_secondary" />
 </LinearLayout>

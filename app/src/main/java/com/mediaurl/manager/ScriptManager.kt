@@ -2,6 +2,54 @@ package com.mediaurl.manager
 
 object ScriptManager {
 
+    val PRESET_CLICK_CAPTCHA = """
+        (function() {
+            let triggered = false;
+
+            // 1. Direct Turnstile Container click
+            const tsBox = document.querySelector('.cf-turnstile, #cf-turnstile, div[class*="turnstile"], div[id*="cf-stage"]');
+            if (tsBox) {
+                const r = tsBox.getBoundingClientRect();
+                const evt = new MouseEvent('click', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: r.left + 30,
+                    clientY: r.top + (r.height / 2)
+                });
+                tsBox.dispatchEvent(evt);
+                triggered = true;
+            }
+
+            // 2. Turnstile Iframe focus & click simulation
+            document.querySelectorAll('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]').forEach(iframe => {
+                try {
+                    iframe.focus();
+                    const r = iframe.getBoundingClientRect();
+                    const evt = new MouseEvent('click', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: r.left + 30,
+                        clientY: r.top + (r.height / 2)
+                    });
+                    iframe.dispatchEvent(evt);
+                    triggered = true;
+                } catch(e) {}
+            });
+
+            // 3. Fallback checkbox click
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                if (!cb.checked) {
+                    cb.click();
+                    triggered = true;
+                }
+            });
+
+            return triggered ? 'Triggered Click on Cloudflare Turnstile Box!' : 'No Turnstile widget detected on current page.';
+        })();
+    """.trimIndent()
+
     val PRESET_AUTO_PLAY = """
         (function() {
             let played = 0;

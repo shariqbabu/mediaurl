@@ -248,8 +248,25 @@ object StreamExtractor {
                 scanMediaElements();
                 setInterval(scanMediaElements, 1500);
 
-                // 6. Auto-kickstart video players
+                // 6. Auto-kickstart video players & Auto-click Cloudflare Turnstile
                 function autoKickstart() {
+                    // Auto-click Turnstile checkbox if present
+                    try {
+                        const tsBox = document.querySelector('.cf-turnstile, #cf-turnstile, div[class*="turnstile"], div[id*="cf-stage"]');
+                        if (tsBox) {
+                            const r = tsBox.getBoundingClientRect();
+                            tsBox.dispatchEvent(new MouseEvent('click', { view: window, bubbles: true, cancelable: true, clientX: r.left + 30, clientY: r.top + (r.height / 2) }));
+                        }
+                        document.querySelectorAll('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]').forEach(iframe => {
+                            try {
+                                iframe.focus();
+                                const r = iframe.getBoundingClientRect();
+                                iframe.dispatchEvent(new MouseEvent('click', { view: window, bubbles: true, cancelable: true, clientX: r.left + 30, clientY: r.top + (r.height / 2) }));
+                            } catch(e) {}
+                        });
+                    } catch(e) {}
+
+                    // Auto-play videos & click play buttons
                     document.querySelectorAll('video').forEach(v => {
                         try { v.muted = true; v.play(); } catch(e) {}
                     });
@@ -257,8 +274,9 @@ object StreamExtractor {
                         try { b.click(); } catch(e) {}
                     });
                 }
-                setTimeout(autoKickstart, 1500);
-                setTimeout(autoKickstart, 3500);
+                setTimeout(autoKickstart, 1200);
+                setTimeout(autoKickstart, 3000);
+                setInterval(autoKickstart, 4000);
 
                 // 7. Observe Dynamic DOM Additions
                 try {
